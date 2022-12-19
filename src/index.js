@@ -16,51 +16,65 @@ const apiSearch = new ApiSearch();
 
 refs.loadMoreBtn.setAttribute('disabled', true);
 
-refs.form.addEventListener('submit', onSearch);
-refs.loadMoreBtn.addEventListener('click', onLoadMore);
-
 async function onSearch(e) {
   e.preventDefault();
 
-  apiSearch.query = e.currentTarget.elements.searchQuery.value.trim();
+  const {
+    elements: { searchQuery },
+  } = e.currentTarget;
 
-  if (!apiSearch.query) {
+  const searchValue = searchQuery.value.trim().toLowerCase();
+
+  if (!searchValue) {
     Notify.failure('What would you like to see?');
     return;
   }
 
   apiSearch.resetPage();
 
-  apiSearch
-    .fetchPicture()
-    .then(hits => {
-      if (hits.length === 0) {
-        Notify.failure(
-          'Sorry, there are no images matching your search query. Please try again.'
-        );
-      } else {
-        clearGallery();
-        appendHitsMarkup(hits);
-        gallery.refresh();
+  apiSearch.searchQuery = searchValue;
+  const data = await apiSearch.fetchPicture();
 
-        refs.loadMoreBtn.removeAttribute('disabled');
-      }
-    })
-    .catch(error => {
-      console.log(error);
-    });
+  console.log(data);
+
+  if (data.hits.length === 0) {
+    Notify.failure(
+      'Sorry, there are no images matching your search query. Please try again.'
+    );
+    return;
+  }
+
+  Notify.success(`Hooray! We found ${data.totalHits} images.`);
+
+  const markup = getHitsTpl(data.hits);
+
+  refs.gallery.innerHTML = markup;
+  lightbox.refresh();
+  refs.loadMoreBtn.removeAttribute('disabled');
 }
 
-const gallery = new SimpleLightbox('.gallery a', {
+async function onLoadMore(e) {
+  apiSearch.incrementPage();
+  const data = await apiSearch.fetchPicture();
+
+  const markup = getHitsTpl(data.hits);
+  refs.gallery.insertAdjacentHTML('beforeend', markup);
+  apiSearch.incrementPage();
+  lightbox.refresh();
+
+  const totalPage = (await data.totalHits) / 40;
+  if (apiSearch.page >= totalPage) {
+    Notify.info("We're sorry, but you've reached the end of search results.");
+    refs.loadMoreBtn.setAttribute('disabled', true);
+  }
+}
+
+const lightbox = new SimpleLightbox('.gallery a', {
   navText: ['←', '→'],
   captionsData: 'alt',
   captionDelay: '250',
   doubleTapZoom: '2',
 });
-
-function onLoadMore() {
-  apiSearch.fetchPicture().then(appendHitsMarkup);
-}
 
 function appendHitsMarkup(hits) {
   refs.gallery.insertAdjacentHTML('beforeend', getHitsTpl(hits));
@@ -69,3 +83,6 @@ function appendHitsMarkup(hits) {
 function clearGallery() {
   refs.gallery.innerHTML = '';
 }
+
+refs.form.addEventListener('submit', onSearch);
+refs.loadMoreBtn.addEventListener('click', onLoadMore);

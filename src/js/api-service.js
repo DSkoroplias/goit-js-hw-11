@@ -10,17 +10,17 @@ export default class ApiSearch {
   }
 
   async fetchPicture() {
-    const resp = await axios.get(
-      `${URL}?key=${KEY}&q=${this.searchQuery}&image_type=photo&orientation=horizontal&safesearch=true&per_page=40&page=${this.page}`
-    );
-    const data = resp.data;
-    // console.log(data);
-    if (resp.status !== 200) {
+    try {
+      const resp = await axios.get(
+        `${URL}?key=${KEY}&q=${this.searchQuery}&image_type=photo&orientation=horizontal&safesearch=true&per_page=40&page=${this.page}`
+      );
+      const data = resp.data;
+
+      this.incrementPage();
+      return data;
+    } catch (error) {
       throw new Error(resp.status);
     }
-
-    this.incrementPage();
-    return data.hits;
   }
 
   incrementPage() {
